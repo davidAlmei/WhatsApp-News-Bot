@@ -52,17 +52,50 @@ World:
 ${JSON.stringify(world)}
 `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
+  let delay = 5000; // 5 seconds
 
-  const cleaned = response.text
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
+  while (true) {
+    try {
+      console.log("Calling Gemini...");
 
-  return JSON.parse(cleaned);
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+
+      const cleaned = response.text
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      console.log("Gemini success!");
+
+      return JSON.parse(cleaned);
+
+    } catch (err) {
+
+      // Retry only for temporary issues
+      if (err.status === 503 || err.status === 429) {
+
+        console.log(
+          `Gemini unavailable. Retrying in ${
+            delay / 1000
+          } seconds...`
+        );
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, delay)
+        );
+
+        // Increase delay each retry
+        delay = Math.min(delay * 2, 60000);
+
+      } else {
+        console.error("Gemini Error:", err);
+        throw err;
+      }
+    }
+  }
 }
 
 module.exports = { generateDigest };
